@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система заявок на ремонт</title>
+
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f5f7; color: #333; }
+        #mainWindow { background: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 30px; }
+        h1, h2 { color: #2c3e50; }
+
+        /* === Кнопки === */
+        .btn { border-radius: 5px; font-weight: 600; }
+        .btn-primary   { background-color: #3498db; border-color: #3498db; }
+        .btn-primary:hover { background-color: #2980b9; }
+        .btn-warning   { background-color: #f39c12; border-color: #f39c12; color:#fff; }
+        .btn-warning:hover { background-color: #d68910; color:#fff; }
+        .btn-info      { background-color: #1abc9c; border-color: #1abc9c; color:#fff; }
+        .btn-info:hover { background-color: #17a589; color:#fff; }
+        .btn-success   { background-color: #2ecc71; border-color: #2ecc71; }
+        .btn-success:hover { background-color: #27ae60; }
+        .btn-danger    { background-color: #e74c3c; border-color: #e74c3c; }
+        .btn-danger:hover  { background-color: #c0392b; }
+        .btn-secondary { background-color: #95a5a6; border-color: #95a5a6; }
+        .btn:disabled  { opacity: 0.45; cursor: not-allowed; }
+
+        /* === Тулбар действий === */
+        #actionToolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 10px 14px;
+            background: #f8f9fa;
+            border: 1px solid #e0e4e8;
+            border-radius: 7px;
+            margin-bottom: 14px;
+        }
+        #actionToolbar .divider {
+            width: 1px; height: 28px;
+            background: #dee2e6; margin: 0 4px;
+        }
+        #selectionInfo {
+            font-size: 13px;
+            color: #888;
+            margin-left: auto;
+        }
+        #selectionInfo.active { color: #2c3e50; font-weight: 600; }
+
+        /* === Таблица === */
+        #requestsTable { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        #requestsTable th, #requestsTable td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #ddd; vertical-align: middle; }
+        #requestsTable th { background-color: #ecf0f1; font-weight: 600; }
+        #requestsTable th.sortable { cursor: pointer; user-select: none; }
+        #requestsTable th.sortable:hover { background-color: #dde4e6; }
+        #requestsTable tbody tr { cursor: pointer; transition: background 0.1s; }
+        #requestsTable tbody tr:hover { background-color: #eaf4fb; }
+        #requestsTable tbody tr.selected { background-color: #d6eaf8 !important; outline: 2px solid #3498db; outline-offset: -2px; }
+
+        .form-control { border-radius: 5px; padding: 8px; }
+
+        /* === Бейджи статусов выполнения === */
+        .badge-NEW       { background:#3498db; color:#fff; padding:3px 8px; border-radius:4px; font-size:12px; white-space:nowrap; }
+        .badge-IN_PROGRESS { background:#f39c12; color:#fff; padding:3px 8px; border-radius:4px; font-size:12px; white-space:nowrap; }
+        .badge-CLOSED    { background:#1abc9c; color:#fff; padding:3px 8px; border-radius:4px; font-size:12px; white-space:nowrap; }
+        .badge-CONFIRMED { background:#2ecc71; color:#fff; padding:3px 8px; border-radius:4px; font-size:12px; white-space:nowrap; }
+        .badge-CANCELLED { background:#95a5a6; color:#fff; padding:3px 8px; border-radius:4px; font-size:12px; white-space:nowrap; }
+
+        /* === Бейджи приоритета заявки === */
+        .priority-NORMAL    { background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600; white-space:nowrap; }
+        .priority-EMERGENCY { background:#fdecea; color:#c62828; border:1px solid #ef9a9a; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600; white-space:nowrap; }
+
+        .ui-autocomplete { max-height: 200px; overflow-y: auto; overflow-x: hidden; }
+
+        /* === Топ-бар === */
+        .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+        .topbar .user-info { font-size:0.9rem; color:#555; }
+        .topbar .user-info strong { color:#2c3e50; }
+
+        /* === Модальные окна === */
+        .modal-overlay {
+            display:none; position:fixed; inset:0;
+            background:rgba(0,0,0,0.5); z-index:1000;
+            align-items:center; justify-content:center;
+        }
+        .modal-overlay.active { display:flex; animation:fadeIn 0.18s ease; }
+        .modal-box {
+            background:#fff; border-radius:10px;
+            box-shadow:0 8px 32px rgba(0,0,0,0.22);
+            padding:32px 30px 24px; width:100%; max-width:500px;
+            position:relative; animation:slideIn 0.22s ease;
+        }
+        .modal-box h2 { margin:0 0 20px; font-size:1.35rem; color:#2c3e50; }
+        .modal-close { position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.5rem; color:#aaa; cursor:pointer; line-height:1; }
+        .modal-close:hover { color:#333; }
+        .modal-box .form-control { margin-bottom:12px; }
+        .modal-actions { display:flex; gap:10px; margin-top:18px; }
+        .form-label { font-size:13px; font-weight:600; color:#555; margin-bottom:4px; display:block; }
+
+        /* Радиокнопки приоритета */
+        .priority-radio { display:flex; gap:12px; margin-bottom:14px; }
+        .priority-radio label {
+            flex:1; text-align:center; padding:8px 0;
+            border:2px solid #dee2e6; border-radius:6px;
+            cursor:pointer; font-weight:600; font-size:13px;
+            transition:all 0.15s;
+        }
+        .priority-radio input { display:none; }
+        .priority-radio input:checked + label.normal-lbl {
+            border-color:#2ecc71; background:#eafaf1; color:#1a7a40;
+        }
+        .priority-radio input:checked + label.emergency-lbl {
+            border-color:#e74c3c; background:#fdecea; color:#c0392b;
+        }
+        .priority-radio label:hover { border-color:#aaa; }
+
+        @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes slideIn { from{opacity:0;transform:translateY(-18px) scale(0.97)} to{opacity:1;transform:none} }
+
+        /* Вкладки */
+        .nav-tabs .nav-link.active { font-weight:700; color:#2c3e50; }
+
+        /* Пользователи */
+        .role-badge { display:inline-block; background:#ecf0f1; border-radius:4px; padding:2px 7px; font-size:11px; margin:1px; color:#2c3e50; font-weight:600; }
+        .role-badge.admin     { background:#e74c3c; color:#fff; }
+        .role-badge.creator   { background:#3498db; color:#fff; }
+        .role-badge.worker    { background:#f39c12; color:#fff; }
+        .role-badge.closer    { background:#1abc9c; color:#fff; }
+        .role-badge.confirmer { background:#2ecc71; color:#fff; }
+        .role-badge.deleter   { background:#95a5a6; color:#fff; }
+    </style>
+</head>
+<body>
+<div id="mainWindow" class="container mt-4">
+
+    <!-- Топ-бар -->
+    <div class="topbar">
+        <h1 style="margin:0">🔧 Заявки на ремонт</h1>
+        <div class="user-info">
+            Вы вошли как <strong id="currentUsername">…</strong>
+            &nbsp;|&nbsp;<a href="/logout">Выйти</a>
+        </div>
+    </div>
+
+    <!-- Вкладки -->
+    <ul class="nav nav-tabs mb-3" id="mainTabs">
+        <li class="nav-item">
+            <a class="nav-link active" href="#" onclick="showTab('requests'); return false;">Заявки</a>
+        </li>
+        <li class="nav-item" id="adminTabItem" style="display:none;">
+            <a class="nav-link" href="#" onclick="showTab('admin'); return false;">Управление пользователями</a>
+        </li>
+    </ul>
+
+    <!-- ========== ВКЛАДКА: ЗАЯВКИ ========== -->
+    <div id="tab-requests">
+
+        <!-- Тулбар действий -->
+        <div id="actionToolbar">
+            <!-- Всегда видимые -->
+            <button class="btn btn-primary btn-sm"   id="btnCreate"  style="display:none" onclick="openCreateModal()">➕ Подать заявку</button>
+            <button class="btn btn-secondary btn-sm" id="btnEdit"    style="display:none" disabled onclick="openEditModal()">✏️ Редактировать</button>
+            <div class="divider" id="dividerCreate" style="display:none"></div>
+            <!-- Действия (показываются по роли) -->
+            <button class="btn btn-warning btn-sm"   id="btnAccept"  style="display:none" disabled onclick="doAction('accept')">▶ В работу</button>
+            <button class="btn btn-info btn-sm"      id="btnClose"   style="display:none" disabled onclick="doAction('close')">✔ Закрыть</button>
+            <button class="btn btn-success btn-sm"   id="btnConfirm" style="display:none" disabled onclick="doAction('confirm')">✅ Подтвердить</button>
+            <button class="btn btn-danger btn-sm"    id="btnDelete"  style="display:none" disabled onclick="doDelete()">🗑 Удалить</button>
+            <!-- Информация о выделении -->
+            <span id="selectionInfo">Выберите заявку в таблице</span>
+        </div>
+
+        <!-- Фильтр -->
+        <div class="form-inline mb-2">
+            <label class="mr-2" style="font-size:13px;font-weight:600;">Статус:</label>
+            <select id="statusFilter" class="form-control form-control-sm mr-3" onchange="loadRequests()">
+                <option value="">Все</option>
+                <option value="NEW">Новая</option>
+                <option value="IN_PROGRESS">В работе</option>
+                <option value="CLOSED">Закрыта</option>
+                <option value="CONFIRMED">Подтверждена</option>
+                <option value="CANCELLED">Отменена</option>
+            </select>
+            <label class="mr-2" style="font-size:13px;font-weight:600;">Приоритет:</label>
+            <select id="priorityFilter" class="form-control form-control-sm mr-3" onchange="loadRequests()">
+                <option value="">Все</option>
+                <option value="NORMAL">Текущая</option>
+                <option value="EMERGENCY">Аварийная</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="loadRequests()">Обновить</button>
+        </div>
+
+        <!-- Таблица -->
+        <table id="requestsTable" class="table table-bordered">
+            <thead>
+            <tr>
+                <th><input type="text" class="form-control form-control-sm" placeholder="Фильтр" onkeyup="filterTable(0)"></th>
+                <th><input type="text" class="form-control form-control-sm" placeholder="Фильтр" onkeyup="filterTable(1)"></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+            <tr>
+                <th class="sortable" onclick="sortTable(0)">Название ↕</th>
+                <th class="sortable" onclick="sortTable(1)">Описание ↕</th>
+                <th class="sortable" onclick="sortTable(2)">Приоритет ↕</th>
+                <th class="sortable" onclick="sortTable(3)">Статус ↕</th>
+                <th class="sortable" onclick="sortTable(4)">Дата ↕</th>
+                <th>Оборудование</th>
+            </tr>
+            </thead>
+            <tbody id="list"></tbody>
+        </table>
+    </div>
+
+    <!-- ========== ВКЛАДКА: ПОЛЬЗОВАТЕЛИ ========== -->
+    <div id="tab-admin" style="display:none;">
+        <div class="mb-3">
+            <button class="btn btn-primary" onclick="openUserModal()">➕ Создать пользователя</button>
+        </div>
+        <table class="table table-bordered">
+            <thead><tr><th>ID</th><th>Логин</th><th>Роли</th><th>Статус</th><th>Действия</th></tr></thead>
+            <tbody id="usersList"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========== МОДАЛКА: СОЗДАТЬ ЗАЯВКУ ========== -->
+<div id="modalCreate" class="modal-overlay" onclick="handleOverlay(event,'modalCreate')">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal('modalCreate')">&times;</button>
+        <h2>Создать заявку</h2>
+
+        <span class="form-label">Название *</span>
+        <input type="text" id="c-title" class="form-control" placeholder="Введите название">
+
+        <span class="form-label">Описание</span>
+        <input type="text" id="c-description" class="form-control" placeholder="Введите описание">
+
+        <span class="form-label">Оборудование</span>
+        <input type="text" id="c-equipmentSearch" class="form-control" placeholder="Начните вводить название...">
+        <input type="hidden" id="c-equipmentId">
+        <small id="c-equipmentSelected" class="text-muted d-block mb-2"></small>
+
+        <span class="form-label">Приоритет *</span>
+        <div class="priority-radio">
+            <div><input type="radio" name="c-priority" id="c-normal" value="NORMAL" checked><label for="c-normal" class="normal-lbl">🟢 Текущая</label></div>
+            <div><input type="radio" name="c-priority" id="c-emergency" value="EMERGENCY"><label for="c-emergency" class="emergency-lbl">🔴 Аварийная</label></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-success" onclick="createRequest()">Создать</button>
+            <button class="btn btn-secondary" onclick="closeModal('modalCreate')">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== МОДАЛКА: РЕДАКТИРОВАТЬ ЗАЯВКУ ========== -->
+<div id="modalEdit" class="modal-overlay" onclick="handleOverlay(event,'modalEdit')">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal('modalEdit')">&times;</button>
+        <h2>Редактировать заявку <span id="e-id-label" style="color:#aaa;font-size:1rem;"></span></h2>
+
+        <!-- Статус выполнения — только для чтения, меняется кнопками действий -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 12px;background:#f8f9fa;border-radius:6px;border:1px solid #e0e4e8;">
+            <span style="font-size:12px;font-weight:600;color:#888;">Статус выполнения:</span>
+            <span id="e-status-badge"></span>
+            <span style="font-size:11px;color:#aaa;margin-left:auto;">меняется кнопками действий</span>
+        </div>
+
+        <span class="form-label">Название *</span>
+        <input type="text" id="e-title" class="form-control" placeholder="Название">
+
+        <span class="form-label">Описание</span>
+        <input type="text" id="e-description" class="form-control" placeholder="Описание">
+
+        <span class="form-label">Оборудование</span>
+        <input type="text" id="e-equipmentSearch" class="form-control" placeholder="Начните вводить название...">
+        <input type="hidden" id="e-equipmentId">
+        <small id="e-equipmentSelected" class="text-muted d-block mb-2"></small>
+
+        <span class="form-label">Приоритет *</span>
+        <div class="priority-radio">
+            <div><input type="radio" name="e-priority" id="e-normal" value="NORMAL"><label for="e-normal" class="normal-lbl">🟢 Текущая</label></div>
+            <div><input type="radio" name="e-priority" id="e-emergency" value="EMERGENCY"><label for="e-emergency" class="emergency-lbl">🔴 Аварийная</label></div>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="saveEdit()">Сохранить</button>
+            <button class="btn btn-secondary" onclick="closeModal('modalEdit')">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========== МОДАЛКА: ПОЛЬЗОВАТЕЛЬ ========== -->
+<div id="userModalOverlay" class="modal-overlay" onclick="handleOverlay(event,'userModalOverlay')">
+    <div class="modal-box" style="max-width:520px">
+        <button class="modal-close" onclick="closeModal('userModalOverlay')">&times;</button>
+        <h2 id="userModalTitle">Создать пользователя</h2>
+        <div id="userCreateFields">
+            <input type="text"     id="newUsername" class="form-control" placeholder="Логин">
+            <input type="password" id="newPassword" class="form-control" placeholder="Пароль">
+        </div>
+        <div class="mt-2 mb-1"><strong>Роли:</strong></div>
+        <div class="form-group">
+            <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_CREATOR"> Создавать заявки (CREATOR)</label></div>
+            <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_WORKER"> Принимать в работу (WORKER)</label></div>
+            <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_CLOSER"> Закрывать заявки (CLOSER)</label></div>
+            <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_CONFIRMER"> Подтверждать ремонт (CONFIRMER)</label></div>
+            <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_DELETER"> Удалять заявки (DELETER)</label></div>
+            <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_ADMIN"> Администратор (ADMIN)</label></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-success" id="userModalSaveBtn" onclick="saveUser()">Сохранить</button>
+            <button class="btn btn-secondary" onclick="closeModal('userModalOverlay')">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===================== СОСТОЯНИЕ =====================
+let currentRoles = [];
+let selectedReqId = null;
+let selectedReqData = null;
+let allRequests = [];
+let editingUserId = null;
+
+const STATUS_LABEL = {
+    NEW:'Новая', IN_PROGRESS:'В работе',
+    CLOSED:'Закрыта', CONFIRMED:'Подтверждена', CANCELLED:'Отменена'
+};
+const PRIORITY_LABEL = { NORMAL:'Текущая', EMERGENCY:'Аварийная' };
+const ROLE_LABEL = {
+    ROLE_ADMIN:'Администратор', ROLE_CREATOR:'Создатель',
+    ROLE_WORKER:'Исполнитель', ROLE_CLOSER:'Закрывающий',
+    ROLE_CONFIRMER:'Подтверждающий', ROLE_DELETER:'Удаляющий'
+};
+const ROLE_CLASS = {
+    ROLE_ADMIN:'admin', ROLE_CREATOR:'creator', ROLE_WORKER:'worker',
+    ROLE_CLOSER:'closer', ROLE_CONFIRMER:'confirmer', ROLE_DELETER:'deleter'
+};
+
+function hasRole(role) {
+    return currentRoles.includes('ROLE_ADMIN') || currentRoles.includes(role);
+}
+
+// ===================== ИНИЦИАЛИЗАЦИЯ =====================
+$(function () {
+    fetch('/api/auth/me')
+        .then(r => r.json())
+        .then(me => {
+            currentRoles = me.roles;
+            document.getElementById('currentUsername').textContent = me.username;
+            // Показываем кнопки по ролям
+            if (hasRole('ROLE_CREATOR')) show('btnCreate');
+            if (hasRole('ROLE_CREATOR')) { show('btnEdit'); show('dividerCreate'); }
+            if (hasRole('ROLE_WORKER'))  show('btnAccept');
+            if (hasRole('ROLE_CLOSER'))  show('btnClose');
+            if (hasRole('ROLE_CONFIRMER')) show('btnConfirm');
+            if (hasRole('ROLE_DELETER')) show('btnDelete');
+            if (hasRole('ROLE_ADMIN'))   show('adminTabItem');
+            loadRequests();
+        });
+
+    // Autocomplete — создание
+    setupAutocomplete('#c-equipmentSearch', '#c-equipmentId', '#c-equipmentSelected');
+    // Autocomplete — редактирование
+    setupAutocomplete('#e-equipmentSearch', '#e-equipmentId', '#e-equipmentSelected');
+});
+
+function setupAutocomplete(searchSel, idSel, labelSel) {
+    $(searchSel).autocomplete({
+        minLength: 1,
+        source: function (req, resp) {
+            $.get('/api/equipment/search', { q: req.term }, function (data) {
+                resp(data.map(e => ({ label: e.name, value: e.name, id: e.id })));
+            }).fail(() => resp([]));
+        },
+        select: function (event, ui) {
+            $(idSel).val(ui.item.id);
+            $(labelSel).text('Выбрано: ' + ui.item.label + ' (id=' + ui.item.id + ')');
+        }
+    });
+    $(searchSel).on('input', function () {
+        $(idSel).val(''); $(labelSel).text('');
+    });
+}
+
+// ===================== ВКЛАДКИ =====================
+function showTab(tab) {
+    document.getElementById('tab-requests').style.display = tab === 'requests' ? '' : 'none';
+    document.getElementById('tab-admin').style.display    = tab === 'admin'    ? '' : 'none';
+    document.querySelectorAll('#mainTabs .nav-link').forEach((el, i) => {
+        el.classList.toggle('active', (i===0 && tab==='requests') || (i===1 && tab==='admin'));
+    });
+    if (tab === 'admin') loadUsers();
+}
+
+// ===================== ЗАЯВКИ =====================
+function loadRequests() {
+    deselectRow();
+    const status   = document.getElementById('statusFilter').value;
+    const priority = document.getElementById('priorityFilter').value;
+    let url = '/api/requests';
+    if (status) url = `/api/requests/by-status?status=${status}`;
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            // Фильтрация по приоритету на клиенте (если нужно добавить серверный — добавить endpoint)
+            allRequests = priority ? data.filter(r => r.priority === priority) : data;
+            renderRequests(allRequests);
+        })
+        .catch(() => alert('Ошибка загрузки заявок'));
+}
+
+function renderRequests(data) {
+    const list = document.getElementById('list');
+    list.innerHTML = '';
+    data.forEach(req => {
+        const date = new Date(req.createdAt).toLocaleString('ru-RU');
+        const tr = document.createElement('tr');
+        tr.dataset.id = req.id;
+        tr.innerHTML = `
+            <td>${escapeHtml(req.title)}</td>
+            <td>${escapeHtml(req.description || '')}</td>
+            <td><span class="priority-${req.priority || 'NORMAL'}">${PRIORITY_LABEL[req.priority] || 'Текущая'}</span></td>
+            <td><span class="badge-${req.status}">${STATUS_LABEL[req.status] || req.status}</span></td>
+            <td>${date}</td>
+            <td>${req.equipment ? escapeHtml(req.equipment.name) : "<span class='text-muted'>—</span>"}</td>
+        `;
+        tr.addEventListener('click', () => selectRow(tr, req));
+        list.appendChild(tr);
+    });
+}
+
+function selectRow(tr, req) {
+    // Снять предыдущее выделение
+    document.querySelectorAll('#list tr.selected').forEach(r => r.classList.remove('selected'));
+    tr.classList.add('selected');
+    selectedReqId = req.id;
+    selectedReqData = req;
+    updateToolbar();
+}
+
+function deselectRow() {
+    document.querySelectorAll('#list tr.selected').forEach(r => r.classList.remove('selected'));
+    selectedReqId = null;
+    selectedReqData = null;
+    updateToolbar();
+}
+
+function updateToolbar() {
+    const has = selectedReqId !== null;
+    const st  = selectedReqData?.status;
+
+    setDisabled('btnEdit',    !has);
+    setDisabled('btnAccept',  !has || st !== 'NEW');
+    setDisabled('btnClose',   !has || st !== 'IN_PROGRESS');
+    setDisabled('btnConfirm', !has || st !== 'CLOSED');
+    setDisabled('btnDelete',  !has);
+
+    const info = document.getElementById('selectionInfo');
+    if (has) {
+        info.textContent = `Выбрана заявка #${selectedReqId}: ${selectedReqData.title}`;
+        info.classList.add('active');
+    } else {
+        info.textContent = 'Выберите заявку в таблице';
+        info.classList.remove('active');
+    }
+}
+
+// ===================== ДЕЙСТВИЯ =====================
+function doAction(action) {
+    if (!selectedReqId) return;
+    const labels = { accept:'принять в работу', close:'закрыть', confirm:'подтвердить' };
+    if (!confirm(`Подтвердите: ${labels[action]} заявку #${selectedReqId}?`)) return;
+    fetch(`/api/requests/${selectedReqId}/${action}`, { method:'PATCH' })
+        .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || r.status); }); })
+        .then(() => loadRequests())
+        .catch(err => alert('Ошибка: ' + err.message));
+}
+
+function doDelete() {
+    if (!selectedReqId) return;
+    if (!confirm(`Удалить заявку #${selectedReqId}?`)) return;
+    fetch(`/api/requests/${selectedReqId}`, { method:'DELETE' })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); })
+        .then(() => loadRequests())
+        .catch(err => alert('Ошибка удаления: ' + err.message));
+}
+
+// ===================== СОЗДАНИЕ ЗАЯВКИ =====================
+function openCreateModal() {
+    $('#c-title,#c-description,#c-equipmentSearch,#c-equipmentId').val('');
+    $('#c-equipmentSelected').text('');
+    document.getElementById('c-normal').checked = true;
+    openModal('modalCreate');
+    setTimeout(() => $('#c-title').focus(), 100);
+}
+
+function createRequest() {
+    const title = $('#c-title').val().trim();
+    if (!title) { alert('Введите название заявки'); return; }
+    const priority = document.querySelector('input[name="c-priority"]:checked').value;
+    const eqId = $('#c-equipmentId').val();
+    const body = {
+        title, description: $('#c-description').val().trim(),
+        priority, status: 'NEW',
+        equipment: eqId ? { id: parseInt(eqId) } : null
+    };
+    fetch('/api/requests', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+        .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || r.status); }); return r.json(); })
+        .then(() => { closeModal('modalCreate'); loadRequests(); })
+        .catch(err => alert('Ошибка: ' + err.message));
+}
+
+// ===================== РЕДАКТИРОВАНИЕ ЗАЯВКИ =====================
+function openEditModal() {
+    if (!selectedReqData) return;
+    const req = selectedReqData;
+    document.getElementById('e-id-label').textContent = '#' + req.id;
+
+    // Бейдж статуса выполнения (только для чтения)
+    document.getElementById('e-status-badge').innerHTML =
+        `<span class="badge-${req.status}">${STATUS_LABEL[req.status] || req.status}</span>`;
+
+    $('#e-title').val(req.title);
+    $('#e-description').val(req.description || '');
+    if (req.equipment) {
+        $('#e-equipmentSearch').val(req.equipment.name);
+        $('#e-equipmentId').val(req.equipment.id);
+        $('#e-equipmentSelected').text('Выбрано: ' + req.equipment.name + ' (id=' + req.equipment.id + ')');
+    } else {
+        $('#e-equipmentSearch,#e-equipmentId').val('');
+        $('#e-equipmentSelected').text('');
+    }
+    const prio = req.priority || 'NORMAL';
+    document.querySelector(`input[name="e-priority"][value="${prio}"]`).checked = true;
+    openModal('modalEdit');
+    setTimeout(() => $('#e-title').focus(), 100);
+}
+
+function saveEdit() {
+    if (!selectedReqId) return;
+    const title = $('#e-title').val().trim();
+    if (!title) { alert('Введите название заявки'); return; }
+    const priority = document.querySelector('input[name="e-priority"]:checked').value;
+    const eqId = $('#e-equipmentId').val();
+    const body = {
+        title, description: $('#e-description').val().trim(),
+        priority, status: selectedReqData.status,
+        equipment: eqId ? { id: parseInt(eqId) } : null
+    };
+    fetch(`/api/requests/${selectedReqId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+        .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || r.status); }); return r.json(); })
+        .then(() => { closeModal('modalEdit'); loadRequests(); })
+        .catch(err => alert('Ошибка: ' + err.message));
+}
+
+// ===================== ПОЛЬЗОВАТЕЛИ =====================
+function loadUsers() {
+    fetch('/api/admin/users').then(r => r.json()).then(renderUsers).catch(() => alert('Ошибка загрузки'));
+}
+
+function renderUsers(data) {
+    const tbody = document.getElementById('usersList');
+    tbody.innerHTML = '';
+    data.forEach(u => {
+        const roleBadges = [...(u.roles||[])].map(r =>
+            `<span class="role-badge ${ROLE_CLASS[r]||''}">${ROLE_LABEL[r]||r}</span>`).join(' ');
+        const statusBadge = u.enabled
+            ? '<span class="badge badge-success">Активен</span>'
+            : '<span class="badge badge-secondary">Заблокирован</span>';
+        const toggleBtn = u.enabled
+            ? `<button class="btn btn-warning btn-sm mr-1" onclick="toggleUser(${u.id},false)">Заблокировать</button>`
+            : `<button class="btn btn-success btn-sm mr-1" onclick="toggleUser(${u.id},true)">Разблокировать</button>`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${u.id}</td>
+            <td><strong>${escapeHtml(u.username)}</strong></td>
+            <td>${roleBadges||'<span class="text-muted">нет ролей</span>'}</td>
+            <td>${statusBadge}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-primary btn-sm mr-1" onclick="openEditRolesModal(${u.id},'${escapeHtml(u.username)}',${JSON.stringify([...(u.roles||[])])})">✏ Роли</button>
+                ${toggleBtn}
+                <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id},'${escapeHtml(u.username)}')">🗑</button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function openUserModal() {
+    editingUserId = null;
+    document.getElementById('userModalTitle').textContent = 'Создать пользователя';
+    document.getElementById('userCreateFields').style.display = '';
+    document.getElementById('userModalSaveBtn').textContent = 'Создать';
+    $('#newUsername,#newPassword').val('');
+    document.querySelectorAll('.roleCheck').forEach(cb => cb.checked = false);
+    openModal('userModalOverlay');
+}
+
+function openEditRolesModal(id, username, roles) {
+    editingUserId = id;
+    document.getElementById('userModalTitle').textContent = 'Роли: ' + username;
+    document.getElementById('userCreateFields').style.display = 'none';
+    document.getElementById('userModalSaveBtn').textContent = 'Сохранить роли';
+    document.querySelectorAll('.roleCheck').forEach(cb => cb.checked = roles.includes(cb.value));
+    openModal('userModalOverlay');
+}
+
+function saveUser() {
+    const roles = [...document.querySelectorAll('.roleCheck:checked')].map(cb => cb.value);
+    if (editingUserId) {
+        fetch(`/api/admin/users/${editingUserId}/roles`, {
+            method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(roles)
+        }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error); }); })
+          .then(() => { closeModal('userModalOverlay'); loadUsers(); })
+          .catch(err => alert('Ошибка: ' + err.message));
+    } else {
+        const username = $('#newUsername').val().trim();
+        const password = $('#newPassword').val().trim();
+        if (!username || !password) { alert('Введите логин и пароль'); return; }
+        fetch('/api/admin/users', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ username, password, roles })
+        }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error); }); })
+          .then(() => { closeModal('userModalOverlay'); loadUsers(); })
+          .catch(err => alert('Ошибка: ' + err.message));
+    }
+}
+
+function toggleUser(id, enabled) {
+    fetch(`/api/admin/users/${id}/enabled`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled})
+    }).then(() => loadUsers()).catch(() => alert('Ошибка'));
+}
+
+function deleteUser(id, username) {
+    if (!confirm(`Удалить пользователя "${username}"?`)) return;
+    fetch(`/api/admin/users/${id}`, { method:'DELETE' })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); })
+        .then(() => loadUsers())
+        .catch(err => alert('Ошибка: ' + err.message));
+}
+
+// ===================== МОДАЛЬНЫЕ ОКНА =====================
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+    document.body.style.overflow = '';
+}
+function handleOverlay(e, id) { if (e.target.id === id) closeModal(id); }
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') ['modalCreate','modalEdit','userModalOverlay'].forEach(closeModal);
+});
+
+// ===================== УТИЛИТЫ =====================
+function show(id)   { document.getElementById(id).style.display = ''; }
+function setDisabled(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = val;
+}
+
+const filterValues = ['','','','',''];
+function filterTable(colIndex) {
+    const inputs = document.querySelectorAll('#requestsTable thead tr:first-child input');
+    filterValues[colIndex] = inputs[colIndex].value.toLowerCase();
+    [...document.getElementById('list').rows].forEach(row => {
+        let show = true;
+        filterValues.forEach((val, i) => {
+            if (!val) return;
+            const cell = row.cells[i];
+            if (cell && !cell.textContent.toLowerCase().includes(val)) show = false;
+        });
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function sortTable(n) {
+    const table = document.getElementById('requestsTable');
+    let switching = true, dir = 'asc', switchcount = 0;
+    while (switching) {
+        switching = false;
+        const rows = table.rows;
+        for (let i = 2; i < rows.length - 1; i++) {
+            const x = rows[i].cells[n], y = rows[i+1].cells[n];
+            if (!x || !y) continue;
+            const xv = x.textContent.toLowerCase(), yv = y.textContent.toLowerCase();
+            if ((dir==='asc' && xv>yv)||(dir==='desc' && xv<yv)) {
+                rows[i].parentNode.insertBefore(rows[i+1], rows[i]);
+                switching = true; switchcount++; break;
+            }
+        }
+        if (!switching && switchcount===0 && dir==='asc') { dir='desc'; switching=true; }
+    }
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
