@@ -27,6 +27,7 @@
         #requestsTable th.sortable { cursor: pointer; }
         #requestsTable th.sortable:hover { background-color: #dde4e6; }
         #requestsTable tr:hover { background-color: #f1f1f1; }
+        #requestsTable tr.selected { background-color: #d5e8f7; }
         .form-control { border-radius: 5px; padding: 8px; }
         .badge-NEW { background: #3498db; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
         .badge-IN_PROGRESS { background: #f39c12; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
@@ -257,6 +258,7 @@
                 const formattedDate = new Date(req.createdAt).toLocaleString("ru-RU");
                 const statusLabel = { NEW: "Новая", IN_PROGRESS: "В работе", DONE: "Выполнена", CANCELLED: "Отменена" }[req.status] || req.status;
                 const tr = document.createElement("tr");
+                tr.onclick = function() { selectRow(this); };
                 tr.innerHTML = `
                     <td>${escapeHtml(req.title)}</td>
                     <td>${escapeHtml(req.description || "")}</td>
@@ -354,6 +356,12 @@
 
     function escapeHtml(str) {
         return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    function selectRow(row) {
+        const rows = document.querySelectorAll("#requestsTable tbody tr");
+        rows.forEach(r => r.classList.remove("selected"));
+        row.classList.add("selected");
     }
 </script>
 </body>
