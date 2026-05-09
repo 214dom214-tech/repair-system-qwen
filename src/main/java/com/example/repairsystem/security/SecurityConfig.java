@@ -47,12 +47,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/requests/**").hasAnyAuthority("ROLE_DELETER","ROLE_ADMIN")
                 .requestMatchers(HttpMethod.GET,    "/api/requests/**").authenticated()
 
-                // Оборудование и файлы — только ROLE_HEAD и ROLE_ADMIN
-                .requestMatchers(HttpMethod.GET, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.PATCH, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
+                // Оборудование и файлы — только ROLE_HEAD
+                .requestMatchers(HttpMethod.GET, "/api/equipment/**").hasAuthority("ROLE_HEAD")
+                .requestMatchers(HttpMethod.POST, "/api/equipment/**").hasAuthority("ROLE_HEAD")
+                .requestMatchers(HttpMethod.PUT, "/api/equipment/**").hasAuthority("ROLE_HEAD")
+                .requestMatchers(HttpMethod.PATCH, "/api/equipment/**").hasAuthority("ROLE_HEAD")
+                .requestMatchers(HttpMethod.DELETE, "/api/equipment/**").hasAuthority("ROLE_HEAD")
 
                 // Справочники корпусов и участков — все авторизованные
                 .requestMatchers("/api/buildings/**").authenticated()
