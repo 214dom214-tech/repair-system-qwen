@@ -6,5 +6,6 @@ public enum Role {
     ROLE_WORKER,      // принимать заявки в работу
     ROLE_CLOSER,      // закрывать заявки (после ремонта)
     ROLE_CONFIRMER,   // подтверждать ремонт
-    ROLE_DELETER      // удалять заявки
+    ROLE_DELETER,     // удалять заявки
+    ROLE_HEAD         // руководитель службы: доступ к оборудованию
 }

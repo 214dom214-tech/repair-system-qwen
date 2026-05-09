@@ -188,6 +188,7 @@
         .role-badge.closer    { background:#1abc9c; color:#fff; }
         .role-badge.confirmer { background:#2ecc71; color:#fff; }
         .role-badge.deleter   { background:#95a5a6; color:#fff; }
+        .role-badge.head      { background:#8e44ad; color:#fff; }
 
         /* Управление столбцами */
         .col-modal-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid #e0e4e8; border-radius:6px; margin-bottom:6px; background:#fff; transition:background 0.1s; }
@@ -236,7 +237,7 @@
         <li class="nav-item">
             <a class="nav-link active" href="#" onclick="showTab('requests'); return false;">Заявки</a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" id="equipmentTabItem" style="display:none;">
             <a class="nav-link" href="#" onclick="showTab('equipment'); return false;">&#9881; Оборудование</a>
         </li>
         <li class="nav-item">
@@ -570,6 +571,7 @@
             <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_CLOSER"> Закрывать заявки (CLOSER)</label></div>
             <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_CONFIRMER"> Подтверждать ремонт (CONFIRMER)</label></div>
             <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_DELETER"> Удалять заявки (DELETER)</label></div>
+            <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_HEAD"> Руководитель службы (HEAD)</label></div>
             <div class="form-check"><label><input type="checkbox" class="roleCheck" value="ROLE_ADMIN"> Администратор (ADMIN)</label></div>
         </div>
         <div class="modal-actions">
@@ -601,11 +603,13 @@ const SERVICE_LABEL = {
 const ROLE_LABEL = {
     ROLE_ADMIN:'Администратор', ROLE_CREATOR:'Создатель',
     ROLE_WORKER:'Исполнитель', ROLE_CLOSER:'Закрывающий',
-    ROLE_CONFIRMER:'Подтверждающий', ROLE_DELETER:'Удаляющий'
+    ROLE_CONFIRMER:'Подтверждающий', ROLE_DELETER:'Удаляющий',
+    ROLE_HEAD:'Руководитель службы'
 };
 const ROLE_CLASS = {
     ROLE_ADMIN:'admin', ROLE_CREATOR:'creator', ROLE_WORKER:'worker',
-    ROLE_CLOSER:'closer', ROLE_CONFIRMER:'confirmer', ROLE_DELETER:'deleter'
+    ROLE_CLOSER:'closer', ROLE_CONFIRMER:'confirmer', ROLE_DELETER:'deleter',
+    ROLE_HEAD:'head'
 };
 
 function hasRole(role) {
