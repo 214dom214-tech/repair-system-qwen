@@ -1,4 +1,4 @@
-```gitignore
+```
 # Compiled and build artifacts
 *.class
 *.o
@@ -8,18 +8,19 @@
 *.so
 *.a
 *.out
-build/
 target/
+build/
+dist/
 
 # Dependencies
-lib/
-libs/
-jars/
-.gradle/
+node_modules/
+venv/
+.venv/
+__pycache__/
 .mypy_cache/
 .pytest_cache/
-__pycache__/
-*.egg-info/
+.gradle/
+target/
 
 # Logs and temp files
 *.log
@@ -35,8 +36,6 @@ __pycache__/
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # System files
 .DS_Store
@@ -47,7 +46,7 @@ coverage/
 htmlcov/
 .coverage
 
-# Archives
+# Compressed files
 *.zip
 *.gz
 *.tar
@@ -66,8 +65,4 @@ htmlcov/
 *.Z
 *.lz
 *.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
 ```

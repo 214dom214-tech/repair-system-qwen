@@ -647,8 +647,10 @@ $(function () {
             // Группа 4 — Удаление
             if (hasRole('ROLE_DELETER'))   { show('grpDeleter'); show('btnDelete'); show('dividerDelete'); }
             if (hasRole('ROLE_ADMIN'))     show('adminTabItem');
-            // Управление оборудованием — только ADMIN
-            if (hasRole('ROLE_ADMIN')) {
+            // Вкладка Оборудование — только ROLE_HEAD
+            if (hasRole('ROLE_HEAD'))      show('equipmentTabItem');
+            // Управление оборудованием — только ROLE_HEAD
+            if (hasRole('ROLE_HEAD')) {
                 show('btnEqAdd'); show('btnEqImport');
                 show('btnEqRetire'); show('btnEqDelete');
             }
