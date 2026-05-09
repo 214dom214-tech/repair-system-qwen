@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система заявок на ремонт</title>
+
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f5f7; color: #333; }
+        #mainWindow { background-color: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 30px; }
+        h1, h2 { color: #2c3e50; }
+        .btn { border-radius: 5px; font-weight: 600; }
+        .btn-primary { background-color: #3498db; border-color: #3498db; }
+        .btn-primary:hover { background-color: #2980b9; border-color: #2980b9; }
+        .btn-secondary { background-color: #95a5a6; border-color: #95a5a6; }
+        .btn-secondary:hover { background-color: #7f8c8d; border-color: #7f8c8d; }
+        .btn-success { background-color: #2ecc71; border-color: #2ecc71; }
+        .btn-danger { background-color: #e74c3c; border-color: #e74c3c; }
+        #requestsTable { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        #requestsTable th, #requestsTable td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        #requestsTable th { background-color: #ecf0f1; font-weight: 600; }
+        #requestsTable th.sortable { cursor: pointer; }
+        #requestsTable th.sortable:hover { background-color: #dde4e6; }
+        #requestsTable tr:hover { background-color: #f1f1f1; }
+        #requestsTable tr.selected { background-color: #b8cfe3; }
+        .form-control { border-radius: 5px; padding: 8px; }
+        .badge-NEW { background: #3498db; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-IN_PROGRESS { background: #f39c12; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-DONE { background: #2ecc71; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-CANCELLED { background: #95a5a6; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .ui-autocomplete { max-height: 200px; overflow-y: auto; overflow-x: hidden; }
+
+        /* === МОДАЛЬНОЕ ОКНО === */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-box {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+            padding: 36px 32px 28px;
+            width: 100%;
+            max-width: 480px;
+            position: relative;
+            animation: slideIn 0.25s ease;
+        }
+        .modal-box h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+        }
+        .modal-close {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #95a5a6;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .modal-close:hover { color: #333; }
+        .modal-box .form-group { margin-bottom: 0; }
+        .modal-box .form-control { margin-bottom: 12px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-24px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<div id="mainWindow" class="container mt-4">
+    <h1>Заявки на ремонт оборудования</h1>
+
+    <button class="btn btn-primary mb-3" onclick="openModal()">Подача заявки</button>
+    <button class="btn btn-secondary mb-3" onclick="showRequestList()">Список заявок</button>
+
+    <!-- Список заявок -->
+    <div id="requestList" style="display:none;">
+        <h2>Список заявок</h2>
+
+        <div class="form-inline mb-3">
+            <label class="mr-2">Статус:</label>
+            <select id="statusFilter" class="form-control mr-3" onchange="loadRequests()">
+                <option value="">Все</option>
+                <option value="NEW">Новая</option>
+                <option value="IN_PROGRESS">В работе</option>
+                <option value="DONE">Выполнена</option>
+                <option value="CANCELLED">Отменена</option>
+            </select>
+        </div>
+
+        <table id="requestsTable" class="table table-bordered">
+            <thead>
+            <tr>
+                <th><input type="text" class="form-control" placeholder="Фильтр" onkeyup="filterTable(0)"></th>
+                <th><input type="text" class="form-control" placeholder="Фильтр" onkeyup="filterTable(1)"></th>
+                <th><input type="text" class="form-control" placeholder="Фильтр" onkeyup="filterTable(2)"></th>
+                <th><input type="text" class="form-control" placeholder="Фильтр" onkeyup="filterTable(3)"></th>
+                <th></th>
+                <th></th>
+            </tr>
+            <tr>
+                <th class="sortable" onclick="sortTable(0)">Название</th>
+                <th class="sortable" onclick="sortTable(1)">Описание</th>
+                <th class="sortable" onclick="sortTable(2)">Статус</th>
+                <th class="sortable" onclick="sortTable(3)">Дата</th>
+                <th>Оборудование</th>
+                <th>Действия</th>
+            </tr>
+            </thead>
+            <tbody id="list"></tbody>
+        </table>
+
+        <button class="btn btn-secondary" onclick="loadRequests()">Обновить</button>
+    </div>
+</div>
+
+<!-- === МОДАЛЬНОЕ ОКНО: форма создания заявки === -->
+<div id="modalOverlay" class="modal-overlay" onclick="handleOverlayClick(event)">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()" title="Закрыть">&times;</button>
+        <h2>Создать заявку</h2>
+        <div class="form-group">
+            <input type="text" id="title" class="form-control" placeholder="Название">
+            <input type="text" id="description" class="form-control" placeholder="Описание">
+            <input type="text" id="equipmentSearch" class="form-control" placeholder="Поиск оборудования по названию">
+            <input type="hidden" id="equipmentId">
+            <small id="equipmentSelected" class="text-muted"></small>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-success" onclick="createRequest()">Создать</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Autocomplete: поиск оборудования
+    $(function () {
+        $("#equipmentSearch").autocomplete({
+            minLength: 1,
+            source: function (request, response) {
+                $.get("/api/equipment/search", { q: request.term }, function (data) {
+                    response(data.map(e => ({ label: e.name, value: e.name, id: e.id })));
+                }).fail(function () { response([]); });
+            },
+            select: function (event, ui) {
+                $("#equipmentId").val(ui.item.id);
+                $("#equipmentSelected").text("Выбрано: " + ui.item.label + " (id=" + ui.item.id + ")");
+            }
+        });
+
+        $("#equipmentSearch").on("input", function () {
+            $("#equipmentId").val("");
+            $("#equipmentSelected").text("");
+        });
+    });
+
+    // Закрытие по клику на затемнение (не на само окно)
+    function handleOverlayClick(e) {
+        if (e.target === document.getElementById("modalOverlay")) closeModal();
+    }
+
+    // Закрытие по Escape
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") closeModal();
+    });
+
+    function openModal() {
+        $("#title").val("");
+        $("#description").val("");
+        $("#equipmentSearch").val("");
+        $("#equipmentId").val("");
+        $("#equipmentSelected").text("");
+        document.getElementById("modalOverlay").classList.add("active");
+        document.body.style.overflow = "hidden"; // блокируем прокрутку фона
+        setTimeout(() => $("#title").focus(), 100);
+    }
+
+    function closeModal() {
+        document.getElementById("modalOverlay").classList.remove("active");
+        document.body.style.overflow = "";
+    }
+
+    function showRequestList() {
+        document.getElementById("requestList").style.display = "block";
+        loadRequests();
+    }
+
+    function createRequest() {
+        const title = $("#title").val().trim();
+        const description = $("#description").val().trim();
+        const equipmentId = $("#equipmentId").val();
+
+        if (!title) { alert("Введите название заявки"); return; }
+
+        const body = {
+            title,
+            description,
+            status: "NEW",
+            equipment: equipmentId ? { id: parseInt(equipmentId) } : null
+        };
+
+        fetch("/api/requests", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        })
+        .then(response => {
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            return response.json();
+        })
+        .then(() => {
+            closeModal();
+            alert("Заявка создана!");
+            showRequestList();
+        })
+        .catch(error => {
+            alert("Ошибка создания заявки: " + error.message);
+            console.error(error);
+        });
+    }
+
+    function loadRequests() {
+        const status = document.getElementById("statusFilter").value;
+        const url = status ? `/api/requests/by-status?status=${status}` : "/api/requests";
+
+        fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            const list = document.getElementById("list");
+            list.innerHTML = "";
+            data.forEach(req => {
+                const formattedDate = new Date(req.createdAt).toLocaleString("ru-RU");
+                const statusLabel = { NEW: "Новая", IN_PROGRESS: "В работе", DONE: "Выполнена", CANCELLED: "Отменена" }[req.status] || req.status;
+                const tr = document.createElement("tr");
+                tr.onclick = function() { selectRow(this); };
+                tr.innerHTML = `
+                    <td>${escapeHtml(req.title)}</td>
+                    <td>${escapeHtml(req.description || "")}</td>
+                    <td><span class="badge-${req.status}">${statusLabel}</span></td>
+                    <td>${formattedDate}</td>
+                    <td>${req.equipment ? escapeHtml(req.equipment.name) : "<span class='text-muted'>не указано</span>"}</td>
+                    <td>
+                        <select class="form-control form-control-sm" onchange="changeStatus(${req.id}, this.value)" style="width:130px; display:inline-block">
+                            <option value="">Сменить статус</option>
+                            <option value="NEW">Новая</option>
+                            <option value="IN_PROGRESS">В работе</option>
+                            <option value="DONE">Выполнена</option>
+                            <option value="CANCELLED">Отменена</option>
+                        </select>
+                        <button class="btn btn-danger btn-sm ml-1" onclick="deleteRequest(${req.id})">Удалить</button>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        })
+        .catch(error => {
+            alert("Ошибка загрузки заявок");
+            console.error(error);
+        });
+    }
+
+    function changeStatus(id, newStatus) {
+        if (!newStatus) return;
+        fetch(`/api/requests/${id}`)
+        .then(r => r.json())
+        .then(req => {
+            req.status = newStatus;
+            return fetch(`/api/requests/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(req)
+            });
+        })
+        .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); })
+        .then(() => loadRequests())
+        .catch(err => { alert("Ошибка смены статуса: " + err.message); });
+    }
+
+    function deleteRequest(id) {
+        if (!confirm("Удалить заявку #" + id + "?")) return;
+        fetch(`/api/requests/${id}`, { method: "DELETE" })
+        .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); })
+        .then(() => loadRequests())
+        .catch(err => { alert("Ошибка удаления: " + err.message); });
+    }
+
+    const filterValues = ["", "", "", ""];
+    function filterTable(colIndex) {
+        const inputs = document.querySelectorAll("#requestsTable thead tr:first-child input");
+        filterValues[colIndex] = inputs[colIndex].value.toLowerCase();
+        const rows = document.getElementById("list").getElementsByTagName("tr");
+        for (let row of rows) {
+            let show = true;
+            for (let i = 0; i < filterValues.length; i++) {
+                if (!filterValues[i]) continue;
+                const cell = row.cells[i];
+                if (cell && !cell.textContent.toLowerCase().includes(filterValues[i])) {
+                    show = false; break;
+                }
+            }
+            row.style.display = show ? "" : "none";
+        }
+    }
+
+    function sortTable(n) {
+        const table = document.getElementById("requestsTable");
+        let rows, switching, i, x, y, shouldSwitch, dir = "asc", switchcount = 0;
+        switching = true;
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 2; i < rows.length - 1; i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+                if (!x || !y) continue;
+                const xVal = x.textContent.toLowerCase(), yVal = y.textContent.toLowerCase();
+                if ((dir === "asc" && xVal > yVal) || (dir === "desc" && xVal < yVal)) {
+                    shouldSwitch = true; break;
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true; switchcount++;
+            } else if (switchcount === 0 && dir === "asc") {
+                dir = "desc"; switching = true;
+            }
+        }
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    function selectRow(row) {
+        const rows = document.querySelectorAll("#requestsTable tbody tr");
+        rows.forEach(r => r.classList.remove("selected"));
+        row.classList.add("selected");
+    }
+</script>
+</body>
+</html>

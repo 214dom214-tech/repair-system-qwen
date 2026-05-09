@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Вход — Система заявок</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f4f5f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .login-box {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+            padding: 40px 36px;
+            width: 100%;
+            max-width: 380px;
+        }
+        .login-box h2 {
+            color: #2c3e50;
+            margin-bottom: 24px;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+        .btn-primary { background-color: #3498db; border-color: #3498db; width: 100%; }
+        .btn-primary:hover { background-color: #2980b9; }
+        .alert { font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+<div class="login-box">
+    <h2>🔧 Система заявок на ремонт</h2>
+
+    <div th:if="${param.error}" class="alert alert-danger">
+        Неверный логин или пароль.
+    </div>
+    <div th:if="${param.logout}" class="alert alert-info">
+        Вы вышли из системы.
+    </div>
+
+    <form th:action="@{/login}" method="post">
+        <div class="form-group">
+            <label>Логин</label>
+            <input type="text" name="username" class="form-control" placeholder="Введите логин" required autofocus>
+        </div>
+        <div class="form-group">
+            <label>Пароль</label>
+            <input type="password" name="password" class="form-control" placeholder="Введите пароль" required>
+        </div>
+        <button type="submit" class="btn btn-primary mt-2">Войти</button>
+    </form>
+</div>
+</body>
+</html>
