@@ -47,8 +47,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/requests/**").hasAnyAuthority("ROLE_DELETER","ROLE_ADMIN")
                 .requestMatchers(HttpMethod.GET,    "/api/requests/**").authenticated()
 
-                // Оборудование и файлы
-                .requestMatchers("/api/equipment/**").authenticated()
+                // Оборудование и файлы — только ROLE_HEAD и ROLE_ADMIN
+                .requestMatchers(HttpMethod.GET, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/equipment/**").hasAnyAuthority("ROLE_HEAD", "ROLE_ADMIN")
 
                 // Справочники корпусов и участков — все авторизованные
                 .requestMatchers("/api/buildings/**").authenticated()
