@@ -28,7 +28,8 @@
         .btn-danger    { background-color: #e74c3c; border-color: #e74c3c; }
         .btn-danger:hover  { background-color: #c0392b; }
         .btn-secondary { background-color: #95a5a6; border-color: #95a5a6; }
-        .btn:disabled  { opacity: 0.45; cursor: not-allowed; }
+        .btn:disabled  { opacity: 0.45; cursor: not-allowed; filter: grayscale(60%); }
+        .btn:not(:disabled) { opacity: 1; }
 
         /* === Тулбар действий === */
         .toolbar-group {
@@ -221,7 +222,7 @@
         <h1 style="margin:0;font-size:1.4rem">🔧 Заявки на ремонт</h1>
         <div class="user-info">
             Вы вошли как <strong id="currentUsername">…</strong>
-            &nbsp;|&nbsp;<a href="/logout">Выйти</a>
+            &nbsp;|&nbsp;<a href="#" onclick="doLogout(); return false;">Выйти</a>
         </div>
     </div>
 
@@ -254,8 +255,8 @@
             <div id="grpCreator" class="toolbar-group" style="display:none">
                 <span class="toolbar-group-label">Заявка</span>
                 <button class="btn btn-primary btn-sm"   id="btnCreate"    style="display:none" onclick="openCreateModal()">&#10010; Подать</button>
-                <button class="btn btn-secondary btn-sm" id="btnDuplicate" style="display:none" disabled onclick="doDuplicate()">&#10697; Дублировать</button>
-                <button class="btn btn-secondary btn-sm" id="btnEdit"      style="display:none" disabled onclick="openEditModal()">&#9998; Редактировать</button>
+                <button class="btn btn-info btn-sm"      id="btnDuplicate" style="display:none;color:#fff" disabled onclick="doDuplicate()">&#10697; Дублировать</button>
+                <button class="btn btn-warning btn-sm"   id="btnEdit"      style="display:none;color:#fff" disabled onclick="openEditModal()">&#9998; Редактировать</button>
             </div>
 
             <!-- Разделитель -->
@@ -265,7 +266,7 @@
             <div id="grpWorker" class="toolbar-group" style="display:none">
                 <span class="toolbar-group-label">Исполнение</span>
                 <button class="btn btn-warning btn-sm"   id="btnAccept"    style="display:none;color:#fff" disabled onclick="doAction('accept')">&#9654; В работу</button>
-                <button class="btn btn-secondary btn-sm" id="btnChangeService" style="display:none" disabled onclick="openChangeServiceModal()">&#9881; Сменить службу</button>
+                <button class="btn btn-primary btn-sm"   id="btnChangeService" style="display:none" disabled onclick="openChangeServiceModal()">&#9881; Сменить службу</button>
                 <button class="btn btn-success btn-sm"   id="btnReopen"    style="display:none;color:#fff" disabled onclick="doAction('reopen')">&#8679; Открыть заново</button>
                 <button class="btn btn-info btn-sm"      id="btnClose"     style="display:none;color:#fff" disabled onclick="openCloseModal()">&#10003; Закрыть</button>
             </div>
@@ -276,7 +277,8 @@
             <!-- Группа 3: Подтверждение (CONFIRMER) -->
             <div id="grpConfirmer" class="toolbar-group" style="display:none">
                 <span class="toolbar-group-label">Подтверждение</span>
-                <button class="btn btn-success btn-sm"   id="btnConfirm"   style="display:none" disabled onclick="doAction('confirm')">&#10003; Подтвердить</button>
+                <button class="btn btn-success btn-sm"   id="btnConfirm"     style="display:none" disabled onclick="doAction('confirm')">&#10003; Подтвердить</button>
+                <button class="btn btn-warning btn-sm"   id="btnReopenConf"  style="display:none;color:#fff" disabled onclick="doAction('reopen_confirmed')">&#8617; Вернуть в работу</button>
             </div>
 
             <!-- Разделитель -->
@@ -434,7 +436,9 @@
     <!-- ========== ВКЛАДКА: ПОЛЬЗОВАТЕЛИ ========== -->
     <div id="tab-admin" style="display:none;">
         <div class="mb-3">
-            <button class="btn btn-primary" onclick="openUserModal()">➕ Создать пользователя</button>
+            <button class="btn btn-primary" onclick="openUserModal()">&#10010; Создать пользователя</button>
+            <button class="btn btn-warning" id="btnEditUser" disabled onclick="openEditUserModal()" style="color:#fff">&#9998; Редактировать</button>
+            <span id="userSelectionInfo" style="font-size:13px;color:#888;margin-left:8px">Выберите пользователя</span>
         </div>
         <table class="table table-bordered">
             <thead><tr><th>ID</th><th>Логин</th><th>Роли</th><th>Статус</th><th>Действия</th></tr></thead>
@@ -517,11 +521,8 @@
             <span style="font-size:11px;color:#aaa;margin-left:auto;">меняется кнопками действий</span>
         </div>
 
-        <span class="form-label">Название *</span>
-        <input type="text" id="e-title" class="form-control" placeholder="Название">
-
-        <span class="form-label">Описание</span>
-        <input type="text" id="e-description" class="form-control" placeholder="Описание">
+        <span class="form-label">Содержание заявки *</span>
+        <textarea id="e-title" class="form-control" rows="3" placeholder="Опишите проблему..."></textarea>
 
         <span class="form-label">Оборудование</span>
         <input type="text" id="e-equipmentSearch" class="form-control" placeholder="Начните вводить название или инвентарный номер...">
@@ -533,10 +534,6 @@
             <div><input type="radio" name="e-priority" id="e-normal" value="NORMAL"><label for="e-normal" class="normal-lbl">&#9654; Текущая</label></div>
             <div><input type="radio" name="e-priority" id="e-emergency" value="EMERGENCY"><label for="e-emergency" class="emergency-lbl">🔴 Аварийная</label></div>
         </div>
-
-        <span class="form-label">Примечание</span>
-        <textarea id="e-note" class="form-control" rows="2" placeholder="Дополнительные сведения..."></textarea>
-
 
         <span class="form-label">Служба</span>
         <select id="e-service" class="form-control" style="margin-bottom:12px">
@@ -637,7 +634,7 @@ $(function () {
             if (hasRole('ROLE_WORKER'))    { show('btnAccept'); show('btnChangeService'); }
             if (hasRole('ROLE_CLOSER'))    { show('btnClose'); show('btnReopen'); show('btnChangeService'); }
             // Группа 3 — Подтверждение
-            if (hasRole('ROLE_CONFIRMER')) { show('grpConfirmer'); show('btnConfirm'); show('dividerConfirm'); }
+            if (hasRole('ROLE_CONFIRMER')) { show('grpConfirmer'); show('btnConfirm'); show('btnReopenConf'); show('dividerConfirm'); }
             // Группа 4 — Удаление
             if (hasRole('ROLE_DELETER'))   { show('grpDeleter'); show('btnDelete'); show('dividerDelete'); }
             if (hasRole('ROLE_ADMIN'))     show('adminTabItem');
@@ -816,7 +813,8 @@ function updateToolbar() {
     const has = selectedReqId !== null;
     const st  = selectedReqData?.status;
 
-    setDisabled('btnEdit',          !has);
+    // Редактировать нельзя если CONFIRMED или CANCELLED
+    setDisabled('btnEdit',          !has || st === 'CONFIRMED' || st === 'CANCELLED');
     setDisabled('btnAccept',        !has || st !== 'NEW');
     // btnClose ↔ btnReopen — показываем одну кнопку в зависимости от статуса
     const closeBtn  = document.getElementById('btnClose');
@@ -842,6 +840,7 @@ function updateToolbar() {
         }
     }
     setDisabled('btnConfirm',       !has || st !== 'CLOSED');
+    setDisabled('btnReopenConf',    !has || st !== 'CONFIRMED');
     setDisabled('btnDuplicate',     !has);
     setDisabled('btnDelete',        !has);
     setDisabled('btnChangeService', !has || st === 'CONFIRMED' || st === 'CANCELLED');
@@ -859,9 +858,10 @@ function updateToolbar() {
 // ===================== ДЕЙСТВИЯ =====================
 function doAction(action) {
     if (!selectedReqId) return;
-    const labels = { accept:'принять в работу', close:'закрыть', confirm:'подтвердить', reopen:'вернуть в работу' };
+    const labels = { accept:'принять в работу', close:'закрыть', confirm:'подтвердить', reopen:'вернуть в работу', reopen_confirmed:'вернуть подтверждённую заявку в работу' };
     if (!confirm(`Подтвердите: ${labels[action]} заявку #${selectedReqId}?`)) return;
-    fetch(`/api/requests/${selectedReqId}/${action}`, { method:'PATCH' })
+    const endpoint = action === 'reopen_confirmed' ? 'reopen' : action;
+    fetch(`/api/requests/${selectedReqId}/${endpoint}`, { method:'PATCH' })
         .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || r.status); }); })
         .then(() => loadRequests())
         .catch(err => alert('Ошибка: ' + err.message));
@@ -936,8 +936,6 @@ function openEditModal() {
         `<span class="badge-${req.status}">${STATUS_LABEL[req.status] || req.status}</span>`;
 
     $('#e-title').val(req.title);
-    $('#e-description').val(req.description || '');
-    $('#e-note').val(req.note || '');
     if (req.equipment) {
         $('#e-equipmentSearch').val(req.equipment.name);
         $('#e-equipmentId').val(req.equipment.id);
@@ -960,8 +958,7 @@ function saveEdit() {
     const priority = document.querySelector('input[name="e-priority"]:checked').value;
     const eqId = $('#e-equipmentId').val();
     const body = {
-        title, description: $('#e-description').val().trim(),
-        note: $('#e-note').val().trim(),
+        title,
         priority,
         serviceType: document.getElementById('e-service').value,
         status: selectedReqData.status,
@@ -984,7 +981,6 @@ function openCloseModal() {
     document.querySelector('input[name="cl-priority"][value="' + prio + '"]').checked = true;
     // Предзаполняем примечание если есть
     document.getElementById('cl-note').value   = req.note || '';
-    document.getElementById('cl-reason').value  = '';
     // Автоматически рассчитываем простой: от даты создания до сейчас
     if (req.createdAt) {
         const diffMins = Math.round((new Date() - new Date(req.createdAt)) / 60000);
@@ -1004,12 +1000,7 @@ function openCloseModal() {
 function doClose() {
     if (!selectedReqId) return;
     const priority = document.querySelector('input[name="cl-priority"]:checked').value;
-    const reason = document.getElementById('cl-reason').value.trim();
-    const works  = document.getElementById('cl-note').value.trim();
-    const noteParts = [];
-    if (reason) noteParts.push('Причина: ' + reason);
-    if (works)  noteParts.push('Работы: ' + works);
-    const note = noteParts.join('\n');
+    const note = document.getElementById('cl-note').value.trim();
     const days    = parseInt(document.getElementById('cl-dt-days').value)    || 0;
     const hours   = parseInt(document.getElementById('cl-dt-hours').value)   || 0;
     const minutes = parseInt(document.getElementById('cl-dt-minutes').value) || 0;
@@ -1044,9 +1035,15 @@ function loadUsers() {
     fetch('/api/admin/users').then(r => r.json()).then(renderUsers).catch(() => alert('Ошибка загрузки'));
 }
 
+let selectedUserId = null;
+let selectedUserData = null;
+
 function renderUsers(data) {
     const tbody = document.getElementById('usersList');
     tbody.innerHTML = '';
+    selectedUserId = null;
+    selectedUserData = null;
+    updateUserToolbar();
     data.forEach(u => {
         const roleBadges = [...(u.roles||[])].map(r =>
             `<span class="role-badge ${ROLE_CLASS[r]||''}">${ROLE_LABEL[r]||r}</span>`).join(' ');
@@ -1057,18 +1054,47 @@ function renderUsers(data) {
             ? `<button class="btn btn-warning btn-sm mr-1" onclick="toggleUser(${u.id},false)">Заблокировать</button>`
             : `<button class="btn btn-success btn-sm mr-1" onclick="toggleUser(${u.id},true)">Разблокировать</button>`;
         const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.dataset.uid = u.id;
         tr.innerHTML = `
             <td>${u.id}</td>
             <td><strong>${escapeHtml(u.username)}</strong></td>
             <td>${roleBadges||'<span class="text-muted">нет ролей</span>'}</td>
             <td>${statusBadge}</td>
             <td style="white-space:nowrap">
-                <button class="btn btn-primary btn-sm mr-1" onclick="openEditRolesModal(${u.id},'${escapeHtml(u.username)}',${JSON.stringify([...(u.roles||[])])})">✏ Роли</button>
                 ${toggleBtn}
-                <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id},'${escapeHtml(u.username)}')">🗑</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id},'${escapeHtml(u.username)}')">&#128465;</button>
             </td>`;
+        tr.addEventListener('click', () => selectUser(tr, u));
+        tr.addEventListener('dblclick', () => openEditUserModal(u));
         tbody.appendChild(tr);
     });
+}
+
+function selectUser(tr, u) {
+    document.querySelectorAll('#usersList tr.selected').forEach(r => r.classList.remove('selected'));
+    tr.classList.add('selected');
+    selectedUserId   = u.id;
+    selectedUserData = u;
+    updateUserToolbar();
+}
+
+function updateUserToolbar() {
+    const btn  = document.getElementById('btnEditUser');
+    const info = document.getElementById('userSelectionInfo');
+    if (btn)  btn.disabled = !selectedUserId;
+    if (info) {
+        info.textContent   = selectedUserId ? selectedUserData.username : 'Выберите пользователя';
+        info.style.color   = selectedUserId ? '#2c3e50' : '#888';
+        info.style.fontWeight = selectedUserId ? '600' : 'normal';
+    }
+}
+
+function openEditUserModal(u) {
+    // Если вызван по двойному клику — u передаётся; если по кнопке — берём selectedUserData
+    const user = u || selectedUserData;
+    if (!user) return;
+    openEditRolesModal(user.id, user.username, [...(user.roles||[])]);
 }
 
 function openUserModal() {
@@ -1196,7 +1222,6 @@ function openRequestDetail(req) {
         ['Принята в работу',   fmt(req.acceptedAt)],
         ['Дата закрытия',      fmt(req.closedAt)],
         ['Оборудование',       req.equipment ? escapeHtml(req.equipment.name) + ' (инв. ' + (req.equipment.inventoryNumber||'—') + ')' : '—'],
-        ['Примечание',         escapeHtml(req.note || '—')],
         ['Простой оборудования', req.downtimeMinutes ? formatDowntime(req.downtimeMinutes) : '—'],
     ];
     document.getElementById('rd-body').innerHTML = rows.map(([label, val]) =>
@@ -1290,11 +1315,9 @@ function doRetireEquipment() {
     if (!selectedEqId) return;
     const eq = selectedEqData;
     const action = eq.retired ? 'restore' : 'retire';
-    const msg    = eq.retired
-        ? 'Восстановить оборудование "' + eq.name + '"?'
-        : 'Списать оборудование "' + eq.name + '"?
-
-Оборудование будет скрыто из списка, но история заявок сохранится.';
+    const msg = eq.retired
+        ? ('Восстановить оборудование "' + eq.name + '"?')
+        : ('Списать оборудование "' + eq.name + '"? История заявок сохранится.');
     if (!confirm(msg)) return;
     fetch('/api/equipment/' + selectedEqId + '/' + action, { method: 'PATCH' })
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); })
@@ -1994,7 +2017,6 @@ const ALL_COLUMNS = [
     { key: 'acceptedAt',  label: 'Принята в работу',    width: 140 },
     { key: 'closedAt',    label: 'Дата закрытия',       width: 140 },
     { key: 'mol',         label: 'МОЛ',                 width: 130 },
-    { key: 'note',        label: 'Примечание',          width: 160 },
     { key: 'downtime',    label: 'Простой',             width: 110 },
 ];
 
@@ -2217,7 +2239,6 @@ function getCellValue(req, key) {
         case 'acceptedAt':  return req.acceptedAt;
         case 'closedAt':    return req.closedAt;
         case 'mol':         return req.equipment ? req.equipment.responsiblePerson : '';
-        case 'note':        return req.note;
         case 'downtime':    return req.downtimeMinutes || 0;
         default: return '';
     }
@@ -2245,7 +2266,6 @@ function renderCell(req, key) {
         case 'acceptedAt': return `<span style="font-size:12px">${fmt(req.acceptedAt)}</span>`;
         case 'closedAt':   return `<span style="font-size:12px">${fmt(req.closedAt)}</span>`;
         case 'mol':        return escapeHtml(req.equipment ? req.equipment.responsiblePerson || '—' : '—');
-        case 'note':       return escapeHtml(req.note || '—');
         case 'downtime':   return req.downtimeMinutes ? formatDowntime(req.downtimeMinutes) : '—';
         default: return '';
     }
@@ -2365,6 +2385,18 @@ function openHistoryModal() {
         });
 }
 
+function doLogout() {
+    // Logout через POST-форму с CSRF (Spring Security требует POST)
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/logout';
+    // CSRF не нужен для /logout т.к. в SecurityConfig стоит ignoringRequestMatchers для /api/**
+    // но /logout — не API, поэтому используем скрытое поле с токеном из cookie если есть,
+    // либо просто делаем fetch с credentials
+    document.body.appendChild(form);
+    form.submit();
+}
+
 function stripHtml(str) { return String(str).replace(/<[^>]*>/g, ''); }
 
 function escapeHtml(str) {
@@ -2389,11 +2421,8 @@ function escapeHtml(str) {
             <div><input type="radio" name="cl-priority" id="cl-emergency" value="EMERGENCY"><label for="cl-emergency" class="emergency-lbl">&#128308; Аварийная</label></div>
         </div>
 
-        <span class="form-label">Причина поломки</span>
-        <textarea id="cl-reason" class="form-control" rows="2" placeholder="Опишите причину поломки..."></textarea>
-
-        <span class="form-label" style="margin-top:8px">Выполненные работы</span>
-        <textarea id="cl-note" class="form-control" rows="2" placeholder="Опишите выполненные работы..."></textarea>
+        <span class="form-label">Причина поломки / Выполненные работы</span>
+        <textarea id="cl-note" class="form-control" rows="4" placeholder="Опишите причину поломки и выполненные работы..."></textarea>
 
         <span class="form-label" style="margin-top:8px">Реальный простой оборудования</span>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
@@ -2591,8 +2620,6 @@ function escapeHtml(str) {
         </div>
     </div>
 </div>
-</body>
-</html>
 
 <!-- ========== МОДАЛКИ: СПРАВОЧНИКИ ========== -->
 <div id="modalBuilding" class="modal-overlay" onclick="handleOverlay(event,'modalBuilding')">
@@ -2896,3 +2923,6 @@ function onBuildingChange() {
         </div>
     </div>
 </div>
+
+</body>
+</html>
